@@ -1,28 +1,29 @@
 def set_environment_variables()
-    vboxmanage = Vagrant::Util::Which.which("VBoxManage") || Vagrant::Util::Which.which("VBoxManage.exe")
-    if vboxmanage != nil
-        s = Vagrant::Util::Subprocess.execute(vboxmanage, '--version')
-        s = s.stdout.strip!
-        if s != ""
-            parts = s.split("r")
-            v = parts.shift
-            r = parts.join("r")
-            if ! parts.empty?
-                r = "r#{r}"
-            end
-            return \
-<<-SCRIPT
-cat > "/etc/profile.d/virtualbox-vars.sh" <<EOF
+    def script_body()
+        vboxmanage = Vagrant::Util::Which.which("VBoxManage") || Vagrant::Util::Which.which("VBoxManage.exe")
+        if vboxmanage != nil
+            s = Vagrant::Util::Subprocess.execute(vboxmanage, '--version')
+            s = s.stdout.strip!
+            if s != ""
+                parts = s.split("r")
+                v = parts.shift
+                r = parts.join("r")
+                if ! parts.empty?
+                    r = "r#{r}"
+                end
+                return \
+<<-SCRIPTBODY
 export VIRTUALBOX_VERSION=#{v}
 export VIRTUALBOX_REVISION=#{r}
-EOF
-SCRIPT
+SCRIPTBODY
+            end
         end
+        return "# NO VARIABLES"
     end
     return \
 <<-SCRIPT
-cat > "/etc/profile.d/virtualbox-vars.sh" <<EOF
-# NO VARIABLES
+cat > "/etc/profile.d/virtualbox-vars.sh" <<'EOF'
+#{script_body()}
 EOF
 SCRIPT
 end
