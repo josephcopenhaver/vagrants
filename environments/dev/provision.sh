@@ -447,6 +447,34 @@ echo install yarn linux package
     apt-get install -y --no-install-recommends yarn
 )
 
+echo install rust
+(
+    sudo -u $USERNAME bash <<'EOF'
+        set -eo pipefail ; . /etc/provision_functions ; set -x
+
+        export CARGO_HOME="$HOME/.cargo"
+
+        echo install rustup
+        (
+            set -exo pipefail
+            if ( command -v rustup ); then
+                echo "Command rustup is already installed"
+                echo "updating rustup only"
+                rustc --version
+                rustup --version
+                rustup self update
+                exit 0
+            fi
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+        )
+        new_bashrcd 04_rustup_config <<'BASHRC_EOF'
+export CARGO_HOME="$HOME/.cargo"
+export PATH="$CARGO_HOME/bin:$PATH"
+eval "$(rustup completions bash)"
+BASHRC_EOF
+EOF
+)
+
 echo install docker
 (
     set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
