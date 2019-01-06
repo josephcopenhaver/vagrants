@@ -432,6 +432,11 @@ EOF
 
 echo install yarn linux package
 (
+    if ( command -v yarn ); then
+        echo yarn already installed
+        exit 0
+    fi
+
     set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
 
     [ -f /etc/apt/sources.list.d/yarn.list ] || touch /etc/apt/sources.list.d/.yarn.list.needs-update
@@ -445,6 +450,43 @@ echo install yarn linux package
     fi
 
     apt-get install -y --no-install-recommends yarn
+)
+
+echo install ruby
+(
+    if ! ( command -v gpg ) || ! ( command -v dirmngr ); then
+    (
+        set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
+        echo "install pre-rvm installation dependencies"
+        apt-get install -y gnupg2 dirmngr
+    )
+    fi
+    sudo -u $USERNAME bash <<'EOF'
+        set -eo pipefail ; . /etc/provision_functions ; set -x
+
+        if ( command -v rvm ); then
+            echo "rvm already installed"
+            echo "update rvm only"
+            ruby --version
+            rvm --version
+            rvm get stable
+            rvm --version
+            exit 0
+        fi
+
+        echo "install rvm"
+
+        gpg --no-tty \
+            --keyserver hkp://pool.sks-keyservers.net \
+            --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 \
+            7D2BAF1CF37B13E2069D6956105BD0E739499BDB
+
+        curl -sSL https://get.rvm.io | bash -s stable --ruby --ignore-dotfiles
+        new_bashrcd 04_rvm_config <<'BASHRC_EOF'
+export RVM_HOME="$HOME/.rvm"
+export PATH="$PATH:$RVM_HOME/bin"
+BASHRC_EOF
+EOF
 )
 
 echo install rust
@@ -463,11 +505,12 @@ echo install rust
                 rustc --version
                 rustup --version
                 rustup self update
+                rustup --version
                 exit 0
             fi
             curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
         )
-        new_bashrcd 04_rustup_config <<'BASHRC_EOF'
+        new_bashrcd 05_rustup_config <<'BASHRC_EOF'
 export CARGO_HOME="$HOME/.cargo"
 export PATH="$CARGO_HOME/bin:$PATH"
 eval "$(rustup completions bash)"
