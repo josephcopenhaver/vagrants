@@ -371,7 +371,7 @@ eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 BASHRC_EOF
 
-        [ ! -s ~/.provisioned_versions/pyenv ] || pyenv --version > ~/.provisioned_versions/pyenv
+        [ -s ~/.provisioned_versions/pyenv ] || pyenv --version > ~/.provisioned_versions/pyenv
         pyenv install --skip-existing 3.6.1
 
 EOF
@@ -407,14 +407,14 @@ echo install go version manager
 . "$HOME/.gvm/scripts/gvm"
 BASHRC_EOF
 
-        [ ! -s ~/.provisioned_versions/gvm ] || gvm version > ~/.provisioned_versions/gvm
+        [ -s ~/.provisioned_versions/gvm ] || gvm version > ~/.provisioned_versions/gvm
 
         major_version=1
         latest_release="go$(set -eo pipefail ; gvm listall | grep -E '^\s*go'"$major_version"'\.[0-9]+(\.[0-9]+)?\s*$' | sed -E 's/^\s*go([^\s]+)\s*/\1/' | sort --version-sort | tail -1)"
         printf 'latest_release=%q' "$latest_release"
         gvm install "$latest_release" -B
         gvm use "$latest_release" --default
-        [ ! -s ~/.provisioned_versions/golang ] || go version > ~/.provisioned_versions/golang
+        [ -s ~/.provisioned_versions/golang ] || go version > ~/.provisioned_versions/golang
 EOF
 )
 
@@ -444,7 +444,7 @@ BASHRC_EOF
         # disabling it so people can remain sane
         set +x
 
-        [ ! -s ~/.provisioned_versions/nvm ] || nvm --version > ~/.provisioned_versions/nvm
+        [ -s ~/.provisioned_versions/nvm ] || nvm --version > ~/.provisioned_versions/nvm
 
         if [[ "$(nvm ls --no-colors)" == *"default -> "* ]]; then
             echo "A default node version has already been selected"
@@ -456,7 +456,7 @@ BASHRC_EOF
         latest_release="$(nvm ls-remote --lts | grep Latest | sed -E 's/^\s*(v[0-9.]+)\s+.*$/\1/' | sort --version-sort | tail -1)"
         nvm install "$latest_release"
         nvm alias default "$latest_release"
-        [ ! -s ~/.provisioned_versions/node ] || node --version > ~/.provisioned_versions/node
+        [ -s ~/.provisioned_versions/node ] || node --version > ~/.provisioned_versions/node
 
         npm --version
         npm install -g npm@latest
@@ -478,7 +478,7 @@ echo install yarn linux package
     fi
 
     apt-get install -y --no-install-recommends yarn
-    [ ! -s ~/.provisioned_versions/yarn ] || yarn --version > ~/.provisioned_versions/yarn
+    [ -s ~/.provisioned_versions/yarn ] || yarn --version > ~/.provisioned_versions/yarn
 )
 
 echo install ruby
@@ -516,8 +516,8 @@ export RVM_HOME="$HOME/.rvm"
 . $RVM_HOME/scripts/rvm
 BASHRC_EOF
 
-        [ ! -s ~/.provisioned_versions/rvm ] || rvm --version > ~/.provisioned_versions/rvm
-        [ ! -s ~/.provisioned_versions/ruby ] || ruby --version > ~/.provisioned_versions/ruby
+        [ -s ~/.provisioned_versions/rvm ] || rvm --version > ~/.provisioned_versions/rvm
+        [ -s ~/.provisioned_versions/ruby ] || ruby --version > ~/.provisioned_versions/ruby
 EOF
 )
 
@@ -548,8 +548,8 @@ ensure_in_path "$CARGO_HOME/bin"
 eval "$(rustup completions bash)"
 BASHRC_EOF
 
-        [ ! -s ~/.provisioned_versions/rustup ] || rustup --version > ~/.provisioned_versions/rustup
-        [ ! -s ~/.provisioned_versions/rustc ] || rustc --version > ~/.provisioned_versions/rustc
+        [ -s ~/.provisioned_versions/rustup ] || rustup --version > ~/.provisioned_versions/rustup
+        [ -s ~/.provisioned_versions/rustc ] || rustc --version > ~/.provisioned_versions/rustc
 EOF
 )
 
@@ -571,7 +571,7 @@ echo install docker
 
     usermod -a -G docker $USERNAME
 
-    [ ! -s ~/.provisioned_versions/docker ] || docker version > ~/.provisioned_versions/docker
+    [ -s ~/.provisioned_versions/docker ] || docker version > ~/.provisioned_versions/docker
 )
 
 echo install google chrome
@@ -594,7 +594,7 @@ echo install google chrome
     fi
 
     apt-get install -y google-chrome-stable$( test -z "$chrome_version" || printf "=%s" "$chrome_version")
-    [ ! -s ~/.provisioned_versions/google-chrome ] || google-chrome --version > ~/.provisioned_versions/google-chrome
+    [ -s ~/.provisioned_versions/google-chrome ] || google-chrome --version > ~/.provisioned_versions/google-chrome
 )
 
 
