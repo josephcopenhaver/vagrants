@@ -465,23 +465,17 @@ BASHRC_EOF
 EOF
 )
 
-echo install yarn linux package
+echo install yarn npm package
 (
-    set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
+    sudo -u $USERNAME bash <<'EOF'
+        set -eo pipefail ; . /etc/provision_functions ; set -x
 
-    [ -f /etc/apt/sources.list.d/yarn.list ] || touch /etc/apt/sources.list.d/.yarn.list.needs-update
-
-    curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-    printf '%s' 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list
-
-    if [ -f /etc/apt/sources.list.d/.yarn.list.needs-update ]; then
-        apt-get update
-        rm /etc/apt/sources.list.d/.yarn.list.needs-update
-    fi
-
-    apt-get install -y --no-install-recommends yarn
-    # can't get version using "yarn --version" because it requires node > 4.0 to be on the active path and shell to be interactive
-    [ -s ~/.provisioned_versions/yarn ] || ( dpkg-query -l | grep yarn | awk '{print $3}' ) > ~/.provisioned_versions/yarn
+        if ( command -v yarn ); then
+            yarn --version
+        fi
+        npm install -g yarn@latest
+        [ -s ~/.provisioned_versions/yarn ] || yarn --version > ~/.provisioned_versions/yarn
+EOF
 )
 
 echo install ruby
