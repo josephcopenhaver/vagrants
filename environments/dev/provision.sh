@@ -164,6 +164,8 @@ echo initialize ~/.bashrc.d/
         update_bashrc
         mkdir -p ~/.provisioned_versions
 EOF
+
+    mkdir -p ~/.provisioned_versions
 )
 
 ensure_line_append "/etc/resolv.conf" "nameserver 8.8.8.8"
@@ -478,7 +480,8 @@ echo install yarn linux package
     fi
 
     apt-get install -y --no-install-recommends yarn
-    [ -s ~/.provisioned_versions/yarn ] || yarn --version > ~/.provisioned_versions/yarn
+    # can't get version using "yarn --version" because it requires node > 4.0 to be on the active path and shell to be interactive
+    [ -s ~/.provisioned_versions/yarn ] || ( dpkg-query -l | grep yarn | awk '{print $3}' ) > ~/.provisioned_versions/yarn
 )
 
 echo install ruby
