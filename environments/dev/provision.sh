@@ -6,6 +6,33 @@ echo Provisioning USERNAME=${USERNAME} ...
 set -exo pipefail
 
 cat <<'EOF' | tee /etc/provision_functions
+BASHRC_PRESERVED_FUNCTIONS="$(cat <<'BASHRC_PRESERVED_FUNCTIONS'
+ensure_in_path() {
+    dir="$1"
+    mode="${2:-p}"
+    if ! [[ $mode =~ ^(p|s)$ ]]; then
+        echo "second argument to ensure_in_path can either be 'p' or 's' for prefix or suffix respectively; p is the default"
+    fi
+    if [[ "$dir" == "~/"* ]] || [[ "$dir" == "~" ]]; then
+        dir="${HOME}${dir:1}"
+    fi
+    if [ -z "$dir" ] || [[ "$PATH" == *":${dir}:"* ]] || [[ "$PATH" == "${dir}:"* ]] || [[ "$PATH" == *":${dir}" ]] || [[ "$PATH" == "$dir" ]]; then
+        return
+    fi
+    sep=""
+    if [ -n "$PATH" ]; then
+        sep=":"
+    fi
+    if [[ "$mode" == "p" ]]; then
+        export PATH="$dir$sep$PATH"
+    else
+        export PATH="$PATH$sep$dir"
+    fi
+}
+BASHRC_PRESERVED_FUNCTIONS
+)"
+eval "$BASHRC_PRESERVED_FUNCTIONS"
+
 is_virtualbox_provider() {
     (
         set -eo pipefail
@@ -86,6 +113,7 @@ alias predate="bash -c 'while IFS='' read -r line || [[ -n \"\$line\" ]]; do pri
 export PS1='`printf "%02X" $?`:\w `git branch 2> /dev/null | grep -E ^* | sed -E s/^\\\\\*\ \(.+\)$/\(\\\\\1\)\ /`\$ '
 BASHRC_EOF
         fi
+        printf '%s' "$BASHRC_PRESERVED_FUNCTIONS" > ~/.bashrc.d/01_bashrcd_preserved_functions
         cat <<'BASHRC_EOF' > ~/.bashrc.d/99_local_bashrc
 if [ -f ~/.bashrc.local ]; then
     . ~/.bashrc.local
@@ -327,18 +355,23 @@ echo configure python version manager
     sudo -u $USERNAME bash <<'EOF'
         set -eo pipefail ; . /etc/provision_functions ; set -x
 
+        if ( command -v pyenv ); then
+            pyenv --version
+        fi
+
         curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 
-        new_bashrcd 01_python_config <<'BASHRC_EOF'
+        new_bashrcd 11_python_config <<'BASHRC_EOF'
 export PYTHONUNBUFFERED=1
 export PIPENV_VENV_IN_PROJECT=1
 export PYENV_ROOT=~/.pyenv
 export PYENV_HOME=$PYENV_ROOT
-export PATH="$PYENV_HOME/bin:$PATH"
+ensure_in_path "$PYENV_HOME/bin"
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 BASHRC_EOF
 
+        [ ! -s ~/.provisioned_versions/pyenv ] || pyenv --version > ~/.provisioned_versions/pyenv
         pyenv install --skip-existing 3.6.1
 
 EOF
@@ -357,31 +390,31 @@ echo install go version manager
     sudo -u $USERNAME bash <<'EOF'
         set -eo pipefail ; . /etc/provision_functions ; set -x
 
-        if [ -f ~/.provisioned_versions/gvm ]; then
-            if [ -f ~/.provisioned_versions/golang ]; then
-                echo "GVM already installed! Remove old installation by running:"
-                echo "    rm -rf /home/vagrant/.gvm"
-                echo "and then reprovisioning"
-                echo ""
-                echi "If you want to use a different version of golang, see 'gvm help' command"
+        if ( command -v gvm ); then
+            if [ -s ~/.provisioned_versions/golang ]; then
+                echo "GVM already installed"
+                echo "If you want to use a different version of golang, see 'gvm help' command"
+                gvm version
+                gvm get
+                gvm version
                 exit 0
             fi
         else
             [ -e "$HOME/.gvm" ] || bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer)
         fi
 
-        new_bashrcd 02_golang_config <<'BASHRC_EOF'
+        new_bashrcd 12_golang_config <<'BASHRC_EOF'
 . "$HOME/.gvm/scripts/gvm"
 BASHRC_EOF
 
-        [ ! -f ~/.provisioned_versions/gvm ] || gvm version > ~/.provisioned_versions/gvm
+        [ ! -s ~/.provisioned_versions/gvm ] || gvm version > ~/.provisioned_versions/gvm
 
         major_version=1
         latest_release="go$(set -eo pipefail ; gvm listall | grep -E '^\s*go'"$major_version"'\.[0-9]+(\.[0-9]+)?\s*$' | sed -E 's/^\s*go([^\s]+)\s*/\1/' | sort --version-sort | tail -1)"
         printf 'latest_release=%q' "$latest_release"
         gvm install "$latest_release" -B
         gvm use "$latest_release" --default
-        printf '%s' "$latest_release" > ~/.provisioned_versions/golang
+        [ ! -s ~/.provisioned_versions/golang ] || go version > ~/.provisioned_versions/golang
 EOF
 )
 
@@ -401,17 +434,17 @@ echo install node version manager
         latest_nvm_release="$(git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1))"
         git checkout -f "$latest_nvm_release"
 
-        new_bashrcd 03_node_config <<'BASHRC_EOF'
+        new_bashrcd 13_node_config <<'BASHRC_EOF'
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 [[ -r $NVM_DIR/bash_completion ]] && . $NVM_DIR/bash_completion
 BASHRC_EOF
 
-        printf '%s' "$latest_nvm_release" > ~/.provisioned_versions/nvm
-
         # nvm is noisy as hell with set -x enabled
         # disabling it so people can remain sane
         set +x
+
+        [ ! -s ~/.provisioned_versions/nvm ] || nvm --version > ~/.provisioned_versions/nvm
 
         if [[ "$(nvm ls --no-colors)" == *"default -> "* ]]; then
             echo "A default node version has already been selected"
@@ -423,7 +456,7 @@ BASHRC_EOF
         latest_release="$(nvm ls-remote --lts | grep Latest | sed -E 's/^\s*(v[0-9.]+)\s+.*$/\1/' | sort --version-sort | tail -1)"
         nvm install "$latest_release"
         nvm alias default "$latest_release"
-        printf '%s' "$latest_release" > ~/.provisioned_versions/node
+        [ ! -s ~/.provisioned_versions/node ] || node --version > ~/.provisioned_versions/node
 
         npm --version
         npm install -g npm@latest
@@ -432,11 +465,6 @@ EOF
 
 echo install yarn linux package
 (
-    if ( command -v yarn ); then
-        echo yarn already installed
-        exit 0
-    fi
-
     set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
 
     [ -f /etc/apt/sources.list.d/yarn.list ] || touch /etc/apt/sources.list.d/.yarn.list.needs-update
@@ -450,6 +478,7 @@ echo install yarn linux package
     fi
 
     apt-get install -y --no-install-recommends yarn
+    [ ! -s ~/.provisioned_versions/yarn ] || yarn --version > ~/.provisioned_versions/yarn
 )
 
 echo install ruby
@@ -482,10 +511,13 @@ echo install ruby
             7D2BAF1CF37B13E2069D6956105BD0E739499BDB
 
         curl -sSL https://get.rvm.io | bash -s stable --ruby --ignore-dotfiles
-        new_bashrcd 04_rvm_config <<'BASHRC_EOF'
+        new_bashrcd 14_rvm_config <<'BASHRC_EOF'
 export RVM_HOME="$HOME/.rvm"
-export PATH="$PATH:$RVM_HOME/bin"
+. $RVM_HOME/scripts/rvm
 BASHRC_EOF
+
+        [ ! -s ~/.provisioned_versions/rvm ] || rvm --version > ~/.provisioned_versions/rvm
+        [ ! -s ~/.provisioned_versions/ruby ] || ruby --version > ~/.provisioned_versions/ruby
 EOF
 )
 
@@ -501,7 +533,7 @@ echo install rust
             set -exo pipefail
             if ( command -v rustup ); then
                 echo "Command rustup is already installed"
-                echo "updating rustup only"
+                echo "update rustup only"
                 rustc --version
                 rustup --version
                 rustup self update
@@ -510,11 +542,14 @@ echo install rust
             fi
             curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
         )
-        new_bashrcd 05_rustup_config <<'BASHRC_EOF'
+        new_bashrcd 15_rustup_config <<'BASHRC_EOF'
 export CARGO_HOME="$HOME/.cargo"
-export PATH="$CARGO_HOME/bin:$PATH"
+ensure_in_path "$CARGO_HOME/bin"
 eval "$(rustup completions bash)"
 BASHRC_EOF
+
+        [ ! -s ~/.provisioned_versions/rustup ] || rustup --version > ~/.provisioned_versions/rustup
+        [ ! -s ~/.provisioned_versions/rustc ] || rustc --version > ~/.provisioned_versions/rustc
 EOF
 )
 
@@ -533,6 +568,10 @@ echo install docker
     fi
 
     apt-get install -y docker-ce
+
+    usermod -a -G docker $USERNAME
+
+    [ ! -s ~/.provisioned_versions/docker ] || docker version > ~/.provisioned_versions/docker
 )
 
 echo install google chrome
@@ -555,7 +594,7 @@ echo install google chrome
     fi
 
     apt-get install -y google-chrome-stable$( test -z "$chrome_version" || printf "=%s" "$chrome_version")
-    google-chrome --version # test that the installed binary can run
+    [ ! -s ~/.provisioned_versions/google-chrome ] || google-chrome --version > ~/.provisioned_versions/google-chrome
 )
 
 
