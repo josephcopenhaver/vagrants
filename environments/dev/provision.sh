@@ -67,7 +67,7 @@ cached_download_file() {
         fi
         echo "Downloading FROM $url TO $dest ..."
         rm -f "/tmp/$tfname"
-        curl -sSL -f "$url" -o "/tmp/$tfname"
+        curl -fsSL "$url" -o "/tmp/$tfname"
         mv "/tmp/$tfname" "$dest"
     )
 }
@@ -359,7 +359,7 @@ echo configure python version manager
             pyenv --version
         fi
 
-        curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
+        curl -fsSL https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 
         new_bashrcd 11_python_config <<'BASHRC_EOF'
 export PYTHONUNBUFFERED=1
@@ -400,7 +400,7 @@ echo install go version manager
                 exit 0
             fi
         else
-            [ -e "$HOME/.gvm" ] || bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer)
+            [ -e "$HOME/.gvm" ] || bash < <(curl -fsSL https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer)
         fi
 
         new_bashrcd 12_golang_config <<'BASHRC_EOF'
@@ -469,7 +469,7 @@ echo install yarn linux package
 
     [ -f /etc/apt/sources.list.d/yarn.list ] || touch /etc/apt/sources.list.d/.yarn.list.needs-update
 
-    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+    curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
     printf '%s' 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list
 
     if [ -f /etc/apt/sources.list.d/.yarn.list.needs-update ]; then
@@ -510,7 +510,7 @@ echo install ruby
             --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 \
             7D2BAF1CF37B13E2069D6956105BD0E739499BDB
 
-        curl -sSL https://get.rvm.io | bash -s stable --ruby --ignore-dotfiles
+        curl -fsSL https://get.rvm.io | bash -s stable --ruby --ignore-dotfiles
         new_bashrcd 14_rvm_config <<'BASHRC_EOF'
 export RVM_HOME="$HOME/.rvm"
 . $RVM_HOME/scripts/rvm
@@ -540,7 +540,7 @@ echo install rust
                 rustup --version
                 exit 0
             fi
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+            curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
         )
         new_bashrcd 15_rustup_config <<'BASHRC_EOF'
 export CARGO_HOME="$HOME/.cargo"
@@ -585,7 +585,7 @@ echo install google chrome
 
     [ -f /etc/apt/sources.list.d/google.list ] || touch /etc/apt/sources.list.d/.google.list.needs-update
 
-    curl -sSL https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+    curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
     printf "deb https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list
 
     if [ -f /etc/apt/sources.list.d/.google.list.needs-update ]; then
