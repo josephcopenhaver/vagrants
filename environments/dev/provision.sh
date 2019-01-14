@@ -482,7 +482,9 @@ echo install node version manager
         cd "$NVM_DIR"
         git fetch origin
         latest_nvm_release="$(git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1))"
+        git log -1 --format="%H"
         git checkout -f "$latest_nvm_release"
+        git log -1 --format="%H"
 
         new_bashrcd 13_node_config <<'BASHRC_EOF'
 export NVM_DIR="$HOME/.nvm"
@@ -494,7 +496,7 @@ BASHRC_EOF
         # disabling it so people can remain sane
         set +x
 
-        ensure_ver_logged nvm 'nvm --version'
+        ensure_ver_logged nvm 'nvm --version ; ( echo ""; cd "$NVM_DIR" ; git log -1 --format="%H" )'
 
         if [[ "$(nvm ls --no-colors)" == *"default -> "* ]]; then
             echo "A default node version has already been selected"
@@ -718,6 +720,52 @@ BASHRC_EOF
         crenv global "$version"
 
         ensure_ver_logged crystal 'crystal --version'
+EOF
+)
+
+echo install java version manager
+(
+    set -eo pipefail
+
+    (
+        set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
+
+        version='8'
+
+        apt-get install -y \
+            "openjdk-$version-jre-headless" \
+            "openjdk-$version-jdk"
+    )
+
+    sudo -u $USERNAME bash <<'EOF'
+        set -eo pipefail ; . /etc/provision_functions ; set -x
+
+        export JENV_DIR="$HOME/.jenv"
+        if [ ! -d "$JENV_DIR" ]; then
+            rm -rf "$JENV_DIR.clone_tmp"
+            git clone https://github.com/gcuisinier/jenv.git "$JENV_DIR.clone_tmp"
+            mv "$JENV_DIR.clone_tmp" "$JENV_DIR"
+        fi
+        cd "$JENV_DIR"
+        git fetch origin
+        latest_jenv_release="$(git describe --abbrev=0 --tags --match "[0-9]*" $(git rev-list --tags --max-count=1))"
+        git log -1 --format="%H"
+        git checkout -f "$latest_jenv_release"
+        git log -1 --format="%H"
+
+        new_bashrcd 17_java_config <<'BASHRC_EOF'
+export JENV_DIR="$HOME/.jenv"
+ensure_in_path "$JENV_DIR/bin"
+eval "$(jenv init -)"
+BASHRC_EOF
+
+        # jenv is noisy as hell with set -x enabled
+        # disabling it so people can remain sane
+        set +x
+
+        jenv rehash
+
+        ensure_ver_logged jenv 'jenv --version ; ( echo ""; cd "$JENV_DIR" ; git log -1 --format="%H" )'
 EOF
 )
 
