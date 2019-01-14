@@ -379,7 +379,7 @@ eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 BASHRC_EOF
 
-        [ -s ~/.provisioned_versions/pyenv ] || pyenv --version > ~/.provisioned_versions/pyenv
+        [ -s ~/.provisioned_versions/pyenv ] || pyenv --version 2>&1 > ~/.provisioned_versions/pyenv
         pyenv install --skip-existing 3.6.1
 
 EOF
@@ -415,14 +415,14 @@ echo install go version manager
 . "$HOME/.gvm/scripts/gvm"
 BASHRC_EOF
 
-        [ -s ~/.provisioned_versions/gvm ] || gvm version > ~/.provisioned_versions/gvm
+        [ -s ~/.provisioned_versions/gvm ] || gvm version 2>&1 > ~/.provisioned_versions/gvm
 
         major_version=1
         latest_release="go$(set -eo pipefail ; gvm listall | grep -E '^\s*go'"$major_version"'\.[0-9]+(\.[0-9]+)?\s*$' | sed -E 's/^\s*go([^\s]+)\s*/\1/' | sort --version-sort | tail -1)"
         printf 'latest_release=%q' "$latest_release"
         gvm install "$latest_release" -B
         gvm use "$latest_release" --default
-        [ -s ~/.provisioned_versions/golang ] || go version > ~/.provisioned_versions/golang
+        [ -s ~/.provisioned_versions/golang ] || go version 2>&1 > ~/.provisioned_versions/golang
 EOF
 )
 
@@ -452,7 +452,7 @@ BASHRC_EOF
         # disabling it so people can remain sane
         set +x
 
-        [ -s ~/.provisioned_versions/nvm ] || nvm --version > ~/.provisioned_versions/nvm
+        [ -s ~/.provisioned_versions/nvm ] || nvm --version 2>&1 > ~/.provisioned_versions/nvm
 
         if [[ "$(nvm ls --no-colors)" == *"default -> "* ]]; then
             echo "A default node version has already been selected"
@@ -464,7 +464,7 @@ BASHRC_EOF
         latest_release="$(nvm ls-remote --lts | grep Latest | sed -E 's/^\s*(v[0-9.]+)\s+.*$/\1/' | sort --version-sort | tail -1)"
         nvm install "$latest_release"
         nvm alias default "$latest_release"
-        [ -s ~/.provisioned_versions/node ] || node --version > ~/.provisioned_versions/node
+        [ -s ~/.provisioned_versions/node ] || node --version 2>&1 > ~/.provisioned_versions/node
 
         npm --version
         npm install -g npm@latest
@@ -480,7 +480,7 @@ echo install yarn npm package
             yarn --version
         fi
         npm install -g yarn@latest
-        [ -s ~/.provisioned_versions/yarn ] || yarn --version > ~/.provisioned_versions/yarn
+        [ -s ~/.provisioned_versions/yarn ] || yarn --version 2>&1 > ~/.provisioned_versions/yarn
 EOF
 )
 
@@ -519,8 +519,8 @@ export RVM_HOME="$HOME/.rvm"
 . $RVM_HOME/scripts/rvm
 BASHRC_EOF
 
-        [ -s ~/.provisioned_versions/rvm ] || rvm --version > ~/.provisioned_versions/rvm
-        [ -s ~/.provisioned_versions/ruby ] || ruby --version > ~/.provisioned_versions/ruby
+        [ -s ~/.provisioned_versions/rvm ] || rvm --version 2>&1 > ~/.provisioned_versions/rvm
+        [ -s ~/.provisioned_versions/ruby ] || ruby --version 2>&1 > ~/.provisioned_versions/ruby
 EOF
 )
 
@@ -551,8 +551,8 @@ ensure_in_path "$CARGO_HOME/bin"
 eval "$(rustup completions bash)"
 BASHRC_EOF
 
-        [ -s ~/.provisioned_versions/rustup ] || rustup --version > ~/.provisioned_versions/rustup
-        [ -s ~/.provisioned_versions/rustc ] || rustc --version > ~/.provisioned_versions/rustc
+        [ -s ~/.provisioned_versions/rustup ] || rustup --version 2>&1 > ~/.provisioned_versions/rustup
+        [ -s ~/.provisioned_versions/rustc ] || rustc --version 2>&1 > ~/.provisioned_versions/rustc
 EOF
 )
 
@@ -572,7 +572,7 @@ echo install cfn-lint from https://github.com/awslabs/cfn-python-lint
     version='==0.11.1'
     pip install "cfn-lint${version}"
 
-    [ -s ~/.provisioned_versions/cfn-lint ] || cfn-lint --version > ~/.provisioned_versions/cfn-lint
+    [ -s ~/.provisioned_versions/cfn-lint ] || cfn-lint --version 2>&1 > ~/.provisioned_versions/cfn-lint
 )
 
 echo install jsonlint from nodejs packages
@@ -582,14 +582,81 @@ echo install jsonlint from nodejs packages
 
         if ( command -v jsonlint ); then
             echo "jsonlint is already installed"
-            jsonlint --version
+            jsonlint --version || true
             exit 0
         fi
 
         version='@1.6.3'
-        npm install "jsonlint${version}"
+        npm install -g "jsonlint${version}"
 
-    [ -s ~/.provisioned_versions/jsonlint ] || jsonlint --version > ~/.provisioned_versions/jsonlint
+        [ -s ~/.provisioned_versions/jsonlint ] || ( jsonlint --version 2>&1 || true ) > ~/.provisioned_versions/jsonlint
+EOF
+)
+
+echo install crystal version manager
+(
+    set -eo pipefail
+
+    (
+        set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
+        echo "install crystallang compiler requirements"
+        apt-get install -y \
+            libssl-dev \
+            libxml2-dev \
+            libyaml-dev \
+            libgmp-dev \
+            \
+            libreadline-dev \
+            \
+            libpcre3 \
+            libpcre3-dev \
+            \
+            libgc-dev \
+            \
+            libevent-dev
+
+        sudo apt autoremove
+    )
+
+    sudo -u $USERNAME bash <<'EOF'
+        set -eo pipefail ; . /etc/provision_functions ; set -x
+
+        if ( command -v crenv ); then
+            echo "crenv is already installed"
+            echo "update crenv only"
+            if ( command -v crystal ); then
+                crystal --version
+            fi
+            crenv --version
+            crenv update
+            crenv --version
+        else
+            curl -fsSL https://raw.github.com/pine/crenv/master/install.sh | bash
+
+            new_bashrcd 16_crystallang_config <<'BASHRC_EOF'
+export CRENV_HOME="$HOME/.crenv"
+ensure_in_path "$CRENV_HOME/bin"
+eval "$(crenv init -)"
+BASHRC_EOF
+
+            [ -s ~/.provisioned_versions/crenv ] || crenv --version 2>&1 > ~/.provisioned_versions/crenv
+        fi
+
+        if ( command -v crystal ); then
+            echo "crystal is already installed"
+            crystal --version
+            exit 0
+        fi
+
+        version="0.25.1"
+        if [ -z "$version" ]; then
+            version="$(crenv install -l | sort --version-sort | tail -1 | sed -E 's/^\s+//; s/\s+$//;')"
+        fi
+
+        crenv install "$version"
+        crenv global "$version"
+
+        [ -s ~/.provisioned_versions/crystallang ] || crystal --version 2>&1 > ~/.provisioned_versions/crystallang
 EOF
 )
 
@@ -611,7 +678,7 @@ echo install docker
 
     usermod -a -G docker $USERNAME
 
-    [ -s ~/.provisioned_versions/docker ] || docker version > ~/.provisioned_versions/docker
+    [ -s ~/.provisioned_versions/docker ] || docker version 2>&1 > ~/.provisioned_versions/docker
 )
 
 echo install google chrome
@@ -634,7 +701,7 @@ echo install google chrome
     fi
 
     apt-get install -y google-chrome-stable$( test -z "$chrome_version" || printf "=%s" "$chrome_version")
-    [ -s ~/.provisioned_versions/google-chrome ] || google-chrome --version > ~/.provisioned_versions/google-chrome
+    [ -s ~/.provisioned_versions/google-chrome ] || google-chrome --version 2>&1 > ~/.provisioned_versions/google-chrome
 )
 
 
