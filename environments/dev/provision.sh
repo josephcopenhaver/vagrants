@@ -119,7 +119,11 @@ if [ -f ~/.bashrc.local ]; then
     . ~/.bashrc.local
 fi
 BASHRC_EOF
-        find ~/.bashrc.d/ -maxdepth 1 -type f | \
+        filter_clause=''
+        if [ -n "$1" ]; then
+            filter_clause='! -name '"$1"
+        fi
+        find ~/.bashrc.d/ -maxdepth 1 -type f $(printf '%s' "$filter_clause") | \
         sort | \
         while read file; do
             printf '# [.bashrc.d] FROM %s\n' "$file"
@@ -133,6 +137,7 @@ update_bashrc() {
     (
         set -exo pipefail
         [ ! -f ~/.bashrc ] || mv ~/.bashrc ~/.bashrc.bak
+        set +x ; build_bashrc 00_main_bashrc | install /dev/stdin -m 0600 ~/.bashrc.d.main ; set -x
         set +x ; build_bashrc | install /dev/stdin -m 0600 ~/.bashrc ; set -x
     )
 }
@@ -469,7 +474,7 @@ EOF
 echo install yarn npm package
 (
     sudo -u $USERNAME bash <<'EOF'
-        set -eo pipefail ; . /etc/provision_functions ; set -x
+        set -eo pipefail ; . /etc/provision_functions ; . ~/.bashrc.d.main ; set -x
 
         if ( command -v yarn ); then
             yarn --version
@@ -565,7 +570,27 @@ echo install cfn-lint from https://github.com/awslabs/cfn-python-lint
         libyaml-dev
 
     version='==0.11.1'
-    pip install "pylint${version}"
+    pip install "cfn-lint${version}"
+
+    [ -s ~/.provisioned_versions/cfn-lint ] || cfn-lint --version > ~/.provisioned_versions/cfn-lint
+)
+
+echo install jsonlint from nodejs packages
+(
+    sudo -u $USERNAME bash <<'EOF'
+        set -eo pipefail ; . /etc/provision_functions ; . ~/.bashrc.d.main ; set -x
+
+        if ( command -v jsonlint ); then
+            echo "jsonlint is already installed"
+            jsonlint --version
+            exit 0
+        fi
+
+        version='@1.6.3'
+        npm install "jsonlint${version}"
+
+    [ -s ~/.provisioned_versions/jsonlint ] || jsonlint --version > ~/.provisioned_versions/jsonlint
+EOF
 )
 
 echo install docker
