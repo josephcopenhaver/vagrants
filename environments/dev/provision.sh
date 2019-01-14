@@ -336,6 +336,7 @@ echo install base python runtime
         pipenv
 
     apt-get install -y \
+        python-dev \
         zlib1g-dev \
         zlib1g \
         gzip \
@@ -548,6 +549,23 @@ BASHRC_EOF
         [ -s ~/.provisioned_versions/rustup ] || rustup --version > ~/.provisioned_versions/rustup
         [ -s ~/.provisioned_versions/rustc ] || rustc --version > ~/.provisioned_versions/rustc
 EOF
+)
+
+echo install cfn-lint from https://github.com/awslabs/cfn-python-lint
+(
+    if ( command -v cfn-lint ); then
+        echo "cfn-lint is already installed"
+        cfn-lint --version
+        exit 0
+    fi
+
+    set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
+
+    apt-get install -y \
+        libyaml-dev
+
+    version='==0.11.1'
+    pip install "pylint${version}"
 )
 
 echo install docker
