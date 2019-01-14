@@ -51,4 +51,8 @@ Vagrant.configure("2") do |config|
     v.cpus = 3 # always leave one core for yourself, verify on mac with "sysctl -n hw.ncpu"
   end
   config.ssh.extra_args = extra_ssh_args()
+  if File.file?('./.vagrantcfg.rb')
+    require './.vagrantcfg.rb'
+    ExtendedVagrantConfig.new(config)
+  end
 end
