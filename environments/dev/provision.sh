@@ -556,6 +556,25 @@ BASHRC_EOF
 EOF
 )
 
+echo install yamllint from https://github.com/adrienverge/yamllint
+(
+    if ( command -v yamllint ); then
+        echo "yamllint is already installed"
+        yamllint --version
+        exit 0
+    fi
+
+    set -exo pipefail ; export DEBIAN_FRONTEND=noninteractive
+
+    apt-get install -y \
+        libyaml-dev
+
+    version='==1.13.0'
+    pip install "yamllint${version}"
+
+    [ -s ~/.provisioned_versions/yamllint ] || yamllint --version 2>&1 > ~/.provisioned_versions/yamllint
+)
+
 echo install cfn-lint from https://github.com/awslabs/cfn-python-lint
 (
     if ( command -v cfn-lint ); then
